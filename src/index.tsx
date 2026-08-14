@@ -1,4 +1,5 @@
 import { Patcher, setMeta } from 'dium';
+import type React from 'react';
 import { betterDiscordConfig } from '../betterdiscord.config';
 import { Plugin } from './bd';
 import { StreamQualitySection } from './components';
@@ -22,12 +23,7 @@ module.exports = class extends Plugin {
     Emitter.removeAllListeners();
   }
 
-  protected getSettingsPanel(): HTMLElement {
-    const container = document.createElement('div');
-    BdApi.ReactDOM.render(
-      BdApi.React.createElement(StreamQualitySection),
-      container
-    );
-    return container;
+  protected getSettingsPanel(): React.ReactElement {
+    return BdApi.React.createElement(StreamQualitySection);
   }
 };

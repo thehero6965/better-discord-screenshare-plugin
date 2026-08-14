@@ -24,6 +24,4 @@ export interface TextInputProps {
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 
-export interface TextInput extends React.ComponentClass<TextInputProps> {
-  Sizes: TextInputSizes;
-}
+export type TextInput = React.ComponentClass<TextInputProps>;

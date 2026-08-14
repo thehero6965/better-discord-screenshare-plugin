@@ -29,7 +29,7 @@ export const DiscordComponentModule = {
     });
   },
   get TextInput(): TextInput {
-    return Finder.find((exports) => exports?.defaultProps?.type === 'text', {
+    return Finder.bySource(['placeholder', 'maxLength', 'clearable'], {
       entries: true,
     });
   },

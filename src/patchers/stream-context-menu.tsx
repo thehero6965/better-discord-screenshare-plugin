@@ -4,6 +4,8 @@ export class StreamContextMenu {
   public static patch(): void {
     this.unpatch();
 
+    console.log('[BetterScreenshare debug] StreamContextMenu.patch() running');
+
     // TEMPORARY: diagnostic only. The previous attempt to push a built
     // item onto tree.props.children silently no-op'd (children wasn't a
     // plain array), so log the actual shape before guessing again.
@@ -17,6 +19,11 @@ export class StreamContextMenu {
       );
       return tree;
     });
+
+    console.log(
+      '[BetterScreenshare debug] BdApi.ContextMenu.patch returned',
+      unpatchMenu
+    );
 
     this.unpatchFunctions.push(unpatchMenu);
   }

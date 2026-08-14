@@ -13,8 +13,22 @@ module.exports = class extends Plugin {
   }
 
   protected async start(): Promise<void> {
-    Screenshare.patch();
-    StreamContextMenu.patch();
+    // Each patcher is independent - one throwing shouldn't stop the rest
+    // from being attempted.
+    try {
+      Screenshare.patch();
+    } catch (e) {
+      console.error('[BetterScreenshare debug] Screenshare.patch() failed', e);
+    }
+
+    try {
+      StreamContextMenu.patch();
+    } catch (e) {
+      console.error(
+        '[BetterScreenshare debug] StreamContextMenu.patch() failed',
+        e
+      );
+    }
   }
 
   protected stop(): void {

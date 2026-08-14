@@ -24,9 +24,10 @@ export const DiscordModule = {
 
 export const DiscordComponentModule = {
   get Dropdown(): Dropdown {
-    return Finder.bySource(['value', 'onChange', 'serialize', 'isSelected'], {
-      entries: true,
-    });
+    return Finder.bySource(
+      ['"single"', 'isSelected', 'maxVisibleItems', '.serialize'],
+      { entries: true }
+    );
   },
   get TextInput(): TextInput {
     return Finder.bySource(['placeholder', 'maxLength', 'clearable'], {

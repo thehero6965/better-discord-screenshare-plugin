@@ -18,6 +18,12 @@ import {
 } from '../stores';
 import { kbitToBit } from '../utils';
 
+// TEMPORARY: debug aid to discover current Discord internals, see console
+// for `[BetterScreenshare debug]` output. Safe to remove once the finders
+// below are updated to match.
+const debugSeenPages = new Set<string>();
+const debugSeenSections = new Set<string>();
+
 export class Screenshare {
   private static mediaEngineStore = mediaEngineStore;
   private static mediaEngine = this.mediaEngineStore.getMediaEngine();
@@ -112,13 +118,41 @@ export class Screenshare {
       Location.prototype,
       'render',
       (data) => {
-        if (data.context.props.page !== 'Go Live Modal') return;
+        const page = data.context?.props?.page;
+        const debugKey = `${page}:${Object.keys(
+          data.context?.props ?? {}
+        ).join(',')}`;
+        if (!debugSeenPages.has(debugKey) && debugSeenPages.size < 30) {
+          debugSeenPages.add(debugKey);
+          console.log(
+            '[BetterScreenshare debug] Location render, props =',
+            data.context?.props
+          );
+        }
+
+        if (page !== 'Go Live Modal') return;
         const oldChildren = data.result.props.children;
-        const modal =
-          data.result._owner.return.return.return.return.return.return.return
-            .memoizedProps;
-        const modalKey = modal.modalKey;
-        const closeModal = modal.closeModal;
+
+        let modal: any;
+        try {
+          modal =
+            data.result._owner.return.return.return.return.return.return
+              .return.memoizedProps;
+        } catch (e) {
+          console.log(
+            '[BetterScreenshare debug] fiber traversal to modal failed',
+            e
+          );
+          return;
+        }
+        const modalKey = modal?.modalKey;
+        const closeModal = modal?.closeModal;
+        if (!modalKey || !closeModal) {
+          console.log(
+            '[BetterScreenshare debug] modal memoizedProps missing modalKey/closeModal',
+            modal
+          );
+        }
 
         data.result.props.children = (props: any) => {
           const oldChildrenResult = oldChildren(props);
@@ -152,7 +186,18 @@ export class Screenshare {
               });
             };
 
-          switch (oldChildrenResult.props.value.location.section) {
+          const section = oldChildrenResult?.props?.value?.location?.section;
+          if (!debugSeenSections.has(String(section))) {
+            debugSeenSections.add(String(section));
+            console.log(
+              '[BetterScreenshare debug] modal section =',
+              section,
+              'value =',
+              oldChildrenResult?.props?.value
+            );
+          }
+
+          switch (section) {
             case 'Stream Settings':
               const streamSettingsModalContent =
                 oldChildrenResult.props.children;

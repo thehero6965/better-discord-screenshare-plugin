@@ -1,29 +1,64 @@
+import { Patcher } from 'dium';
+import { StreamQualitySection } from '../components';
+
 export class StreamContextMenu {
   private static unpatchFunctions: (() => void)[] = [];
 
   public static patch(): void {
     this.unpatch();
 
-    console.log('[BetterScreenshare debug] StreamContextMenu.patch() running');
+    // BdApi.ContextMenu.patch('manage-streams', ...) registers without
+    // error but its callback never fires - confirmed live, even patched
+    // directly from the console with no plugin code involved. This menu
+    // appears to bypass whatever BD's ContextMenu API hooks into, so
+    // patch the component that builds it directly instead.
+    const [menuModule, menuKey] = BdApi.Webpack.getWithKey(
+      BdApi.Webpack.Filters.bySource('manage-streams'),
+      { searchExports: true }
+    );
 
-    // TEMPORARY: diagnostic only. The previous attempt to push a built
-    // item onto tree.props.children silently no-op'd (children wasn't a
-    // plain array), so log the actual shape before guessing again.
-    const unpatchMenu = BdApi.ContextMenu.patch('manage-streams', (tree) => {
-      console.log('[BetterScreenshare debug] manage-streams tree =', tree);
-      console.log(
-        '[BetterScreenshare debug] tree.props.children =',
-        tree?.props?.children,
-        'isArray =',
-        Array.isArray(tree?.props?.children)
+    if (!menuModule || !menuKey) {
+      console.error(
+        '[BetterScreenshare debug] Could not find a module matching "manage-streams" in its source'
       );
-      return tree;
-    });
+      return;
+    }
 
     console.log(
-      '[BetterScreenshare debug] BdApi.ContextMenu.patch returned',
-      unpatchMenu
+      '[BetterScreenshare debug] manage-streams module/key found:',
+      menuModule,
+      menuKey
     );
+
+    const unpatchMenu = Patcher.after(menuModule, menuKey, (data) => {
+      console.log(
+        '[BetterScreenshare debug] manage-streams patched fn result =',
+        data.result
+      );
+
+      const children = (data.result as any)?.props?.children;
+      console.log(
+        '[BetterScreenshare debug] result.props.children =',
+        children,
+        'isArray =',
+        Array.isArray(children)
+      );
+
+      if (!Array.isArray(children)) return;
+
+      children.push(
+        BdApi.ContextMenu.buildItem({
+          type: 'submenu',
+          label: 'BetterScreenshare',
+          items: [
+            {
+              type: 'custom',
+              render: () => <StreamQualitySection />,
+            },
+          ],
+        })
+      );
+    });
 
     this.unpatchFunctions.push(unpatchMenu);
   }

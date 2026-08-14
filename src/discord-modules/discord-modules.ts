@@ -1,6 +1,6 @@
 import { Finder } from 'dium';
 import { Text } from './types/classes';
-import { Dropdown, Location, TextInput } from './types/components';
+import { Dropdown, TextInput } from './types/components';
 import { Dispatcher, Utils } from './types/modules';
 import { MediaEngineStore, StreamStore } from './types/stores';
 
@@ -32,9 +32,6 @@ export const DiscordComponentModule = {
     return Finder.bySource(['placeholder', 'maxLength', 'clearable'], {
       entries: true,
     });
-  },
-  get Location(): Location {
-    return Finder.bySource(['_loadDate', 'getLocation', 'mergeLocation']);
   },
 } as const;
 

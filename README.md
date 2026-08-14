@@ -53,6 +53,8 @@ To get the plugin, you can either build it yourself by cloning this repository o
 
 When sharing a window directly it can sometimes happen that no changes are applied, the reason for this is unknown at this time, but to avoid this you can simply share your screen and set the audio source if needed.
 
+Quality settings are configured through this plugin's own settings panel (BetterDiscord Settings → Plugins → the gear icon next to BetterScreenshare) and are applied automatically when you go live. Do not use Discord's own native SD/HD quality toggle while this plugin is active and you're already sharing — switching it mid-stream conflicts with the quality this plugin has already forced onto the connection and can leave the shared video frozen/black until you switch to a different screen or application source.
+
 ## Scripts
 
 - `build` Build the plugin.

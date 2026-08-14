@@ -1,14 +1,5 @@
-import { Patcher, Utils } from 'dium';
-import React from 'react';
 import deepmerge from 'ts-deepmerge';
-import { StreamQualitySection } from '../components';
-import {
-  Location,
-  dispatcher,
-  mediaEngineStore,
-  streamStore,
-  utils as discordUtils,
-} from '../discord-modules';
+import { mediaEngineStore, utils as discordUtils } from '../discord-modules';
 import { Emitter } from '../emitter';
 import {
   DefaultScreenshareConfig,
@@ -18,16 +9,9 @@ import {
 } from '../stores';
 import { kbitToBit } from '../utils';
 
-// TEMPORARY: debug aid to discover current Discord internals, see console
-// for `[BetterScreenshare debug]` output. Safe to remove once the finders
-// below are updated to match.
-const debugSeenPages = new Set<string>();
-const debugSeenSections = new Set<string>();
-
 export class Screenshare {
   private static mediaEngineStore = mediaEngineStore;
   private static mediaEngine = this.mediaEngineStore.getMediaEngine();
-  private static replacedStreamQualityComponent = (<StreamQualitySection />);
   private static unpatchFunctions: (() => void)[] = [];
 
   public static patch(): void {
@@ -55,18 +39,6 @@ export class Screenshare {
           ) as any as DefaultScreenshareConfig & ScreenshareConfig;
 
           connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
-
-          // const desktopSourceId = connection.desktopSourceId;
-          // connection.setDesktopSource(desktopSourceId || '', {
-          //   useVideoHook: this.mediaEngineStore.getVideoHook(),
-          //   useGraphicsCapture: true,
-          //   useQuartzCapturer: true,
-          //   allowScreenCaptureKit: true,
-          //   hdrCaptureMode: 'always',
-          //   fps: 69,
-          //   height: 111,
-          //   width: 423,
-          // });
 
           connection.setDesktopEncodingOptions(
             encode.getWidth(),
@@ -114,108 +86,7 @@ export class Screenshare {
       }
     );
 
-    const unpatchModalReplacer = Patcher.after(
-      Location.prototype,
-      'render',
-      (data) => {
-        const page = data.context?.props?.page;
-        const debugKey = `${page}:${Object.keys(
-          data.context?.props ?? {}
-        ).join(',')}`;
-        if (!debugSeenPages.has(debugKey) && debugSeenPages.size < 30) {
-          debugSeenPages.add(debugKey);
-          console.log(
-            '[BetterScreenshare debug] Location render, props =',
-            data.context?.props
-          );
-        }
-
-        if (page !== 'Go Live Modal') return;
-        const oldChildren = data.result.props.children;
-
-        let modal: any;
-        try {
-          modal =
-            data.result._owner.return.return.return.return.return.return
-              .return.memoizedProps;
-        } catch (e) {
-          console.log(
-            '[BetterScreenshare debug] fiber traversal to modal failed',
-            e
-          );
-          return;
-        }
-        const modalKey = modal?.modalKey;
-        const closeModal = modal?.closeModal;
-        if (!modalKey || !closeModal) {
-          console.log(
-            '[BetterScreenshare debug] modal memoizedProps missing modalKey/closeModal',
-            modal
-          );
-        }
-
-        data.result.props.children = (props: any) => {
-          const oldChildrenResult = oldChildren(props);
-
-          const submitBtn: any = Utils.queryTree(
-            oldChildrenResult,
-            (arg) => arg?.props?.type === 'submit'
-          );
-
-          /* This function exists because there needs to be a way to update the quality so I prevent the default event and emit the connected event */
-          if (submitBtn?.props)
-            submitBtn.props.onClick = (e: any) => {
-              this.mediaEngine.eachConnection((connection) => {
-                if (
-                  connection.context === 'stream' &&
-                  connection.connectionState === 'CONNECTED'
-                ) {
-                  this.mediaEngine.setDesktopSource({ id: null });
-
-                  const currentStream =
-                    streamStore.getCurrentUserActiveStream();
-                  dispatcher.dispatch({
-                    type: 'STREAM_STOP',
-                    streamKey: `${currentStream.streamType}:${
-                      currentStream.guildId ? `${currentStream.guildId}:` : ''
-                    }${currentStream.channelId}:${currentStream.ownerId}`,
-                  });
-
-                  closeModal(modalKey);
-                }
-              });
-            };
-
-          const section = oldChildrenResult?.props?.value?.location?.section;
-          if (!debugSeenSections.has(String(section))) {
-            debugSeenSections.add(String(section));
-            console.log(
-              '[BetterScreenshare debug] modal section =',
-              section,
-              'value =',
-              oldChildrenResult?.props?.value
-            );
-          }
-
-          switch (section) {
-            case 'Stream Settings':
-              const streamSettingsModalContent =
-                oldChildrenResult.props.children;
-
-              streamSettingsModalContent.props.title = 'Stream Settings';
-              streamSettingsModalContent.props.children.props.children =
-                this.replacedStreamQualityComponent;
-              break;
-            default:
-              break;
-          }
-
-          return oldChildrenResult;
-        };
-      }
-    );
-
-    this.unpatchFunctions.push(unpatchQualityModifer, unpatchModalReplacer);
+    this.unpatchFunctions.push(unpatchQualityModifer);
   }
 
   public static unpatch(): void {

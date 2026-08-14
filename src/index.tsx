@@ -4,7 +4,7 @@ import { betterDiscordConfig } from '../betterdiscord.config';
 import { Plugin } from './bd';
 import { StreamQualitySection } from './components';
 import { Emitter } from './emitter';
-import { Debug, Screenshare } from './patchers';
+import { Debug, Screenshare, StreamContextMenu } from './patchers';
 
 module.exports = class extends Plugin {
   constructor() {
@@ -14,12 +14,14 @@ module.exports = class extends Plugin {
 
   protected async start(): Promise<void> {
     Screenshare.patch();
+    StreamContextMenu.patch();
   }
 
   protected stop(): void {
     Patcher.unpatchAll();
     Debug.unpatch();
     Screenshare.unpatch();
+    StreamContextMenu.unpatch();
     Emitter.removeAllListeners();
   }
 

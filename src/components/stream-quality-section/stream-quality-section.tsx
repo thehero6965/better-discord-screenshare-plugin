@@ -12,6 +12,29 @@ import { TextInput } from '../text-input';
 const { h5 } = text;
 const mediaEngine = mediaEngineStore.getMediaEngine();
 
+// TEMPORARY: getWindowPreviews' argument signature no longer matches
+// what this plugin passes (Discord throws "Invalid argument at index 0:
+// type mismatch"). Logged once for diagnosis instead of spamming an
+// unhandled rejection on every poll; safe to remove once fixed for real.
+let loggedWindowPreviewsSignature = false;
+
+const fetchWindowPreviews = async (): Promise<WindowPreview[] | undefined> => {
+  try {
+    return await mediaEngine.getWindowPreviews(1, 1);
+  } catch (e) {
+    if (!loggedWindowPreviewsSignature) {
+      loggedWindowPreviewsSignature = true;
+      console.log(
+        '[BetterScreenshare debug] getWindowPreviews failed:',
+        e,
+        'current signature:',
+        mediaEngine.getWindowPreviews?.toString()
+      );
+    }
+    return undefined;
+  }
+};
+
 export interface StreamQualitySectionSettingsGroupProps {
   title: string;
   settingElements: JSX.Element[];
@@ -78,7 +101,7 @@ export const StreamQualitySection: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      setWindowPreviews(await mediaEngine.getWindowPreviews(1, 1));
+      setWindowPreviews(await fetchWindowPreviews());
     }, 4000);
 
     return () => clearInterval(interval);
@@ -91,7 +114,7 @@ export const StreamQualitySection: React.FC = () => {
       );
 
       setCodecs(stringifiedCodecs);
-      setWindowPreviews(await mediaEngine.getWindowPreviews(1, 1));
+      setWindowPreviews(await fetchWindowPreviews());
     })();
   }, []);
 

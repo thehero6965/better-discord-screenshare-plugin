@@ -23,9 +23,12 @@ export class StreamContextMenu {
     await BdApi.Webpack.waitForModule(filter, { searchExports: true });
     if (this.stopped) return;
 
-    const [menuModule, menuKey] = BdApi.Webpack.getWithKey(filter, {
-      searchExports: true,
-    });
+    // getWithKey does its own manual export search internally (find the
+    // module, then find which of its keys matches) - passing
+    // searchExports here makes the underlying module lookup apply our
+    // filter per-entry too, breaking that internal logic. Confirmed via
+    // BD's own source: this must be called without it.
+    const [menuModule, menuKey] = BdApi.Webpack.getWithKey(filter);
 
     if (!menuModule || !menuKey) {
       console.error(

@@ -11,6 +11,7 @@ import { Location } from '../discord-modules';
 // into directly.
 export class VoiceTrayButton {
   private static unpatchFunctions: (() => void)[] = [];
+  private static logged = false;
 
   public static patch(): void {
     this.unpatch();
@@ -24,14 +25,40 @@ export class VoiceTrayButton {
 
         const result = data.result as any;
         const oldChildren = result?.props?.children;
-        if (typeof oldChildren !== 'function') return;
+        if (typeof oldChildren !== 'function') {
+          if (!this.logged) {
+            this.logged = true;
+            console.log(
+              '[BetterScreenshare debug] voice tray: section matched but children is not a function:',
+              oldChildren
+            );
+          }
+          return;
+        }
 
         result.props.children = (...args: any[]) => {
           const rendered = oldChildren(...args);
-
           const children = rendered?.props?.children;
+          const isArray = Array.isArray(children);
+
+          if (!this.logged) {
+            this.logged = true;
+            console.log(
+              '[BetterScreenshare debug] voice tray: rendered =',
+              rendered
+            );
+            console.log(
+              '[BetterScreenshare debug] voice tray: children =',
+              children,
+              'isArray =',
+              isArray,
+              'length =',
+              isArray ? children.length : undefined
+            );
+          }
+
           if (
-            Array.isArray(children) &&
+            isArray &&
             !children.some(
               (child: any) => child?.key === 'better-screenshare-button'
             )
@@ -52,6 +79,7 @@ export class VoiceTrayButton {
   }
 
   public static unpatch(): void {
+    this.logged = false;
     this.unpatchFunctions.forEach((fn) => fn());
     this.unpatchFunctions = [];
   }

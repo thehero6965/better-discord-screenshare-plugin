@@ -4,7 +4,7 @@ import { betterDiscordConfig } from '../betterdiscord.config';
 import { Plugin } from './bd';
 import { StreamQualitySection } from './components';
 import { Emitter } from './emitter';
-import { Debug, FloatingButton, Screenshare } from './patchers';
+import { Debug, DropdownFix, FloatingButton, Screenshare } from './patchers';
 
 module.exports = class extends Plugin {
   constructor() {
@@ -29,6 +29,12 @@ module.exports = class extends Plugin {
         e
       );
     }
+
+    try {
+      DropdownFix.patch();
+    } catch (e) {
+      console.error('[BetterScreenshare debug] DropdownFix.patch() failed', e);
+    }
   }
 
   protected stop(): void {
@@ -36,6 +42,7 @@ module.exports = class extends Plugin {
     Debug.unpatch();
     Screenshare.unpatch();
     FloatingButton.unmount();
+    DropdownFix.unpatch();
     Emitter.removeAllListeners();
   }
 

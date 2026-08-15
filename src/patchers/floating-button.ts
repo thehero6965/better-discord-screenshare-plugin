@@ -108,6 +108,7 @@ const makeDraggable = (
 export class FloatingButton {
   private static button: HTMLDivElement | undefined;
   private static popout: HTMLDivElement | undefined;
+  private static content: HTMLDivElement | undefined;
   private static reactRoot: ReactRoot | undefined;
   private static outsideClickHandler: ((e: MouseEvent) => void) | undefined;
 
@@ -195,9 +196,7 @@ export class FloatingButton {
 
     this.button = button;
     this.popout = popout;
-
-    this.reactRoot = (BdApi.ReactDOM as any).createRoot(content);
-    this.reactRoot!.render(BdApi.React.createElement(StreamQualitySection));
+    this.content = content;
 
     makeDraggable(
       button,
@@ -230,6 +229,18 @@ export class FloatingButton {
   private static togglePopout(): void {
     if (!this.popout) return;
     if (this.popout.style.display === 'none') {
+      // Deferred until first open rather than mounted eagerly at start() -
+      // Discord's native form components (Dropdown, TextInput) log a
+      // "useManaContext must be used within a ManaContext.Provider"
+      // warning on every render since this tree is disconnected from
+      // Discord's own React tree; mounting eagerly meant that warning fired
+      // continuously in the background (the window-preview poll re-renders
+      // every 4s) even while the popout was never opened.
+      if (!this.reactRoot && this.content) {
+        this.reactRoot = (BdApi.ReactDOM as any).createRoot(this.content);
+        this.reactRoot!.render(BdApi.React.createElement(StreamQualitySection));
+      }
+
       const savedPopoutPosition = BdApi.Data.load(
         getMeta().name,
         POPOUT_POSITION_DATA_KEY
@@ -272,6 +283,7 @@ export class FloatingButton {
     this.button = undefined;
     this.popout?.remove();
     this.popout = undefined;
+    this.content = undefined;
 
     // Defensive: clean up stray leftovers from an earlier session/reload.
     document.getElementById(BUTTON_ID)?.remove();

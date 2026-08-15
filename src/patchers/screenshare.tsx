@@ -71,8 +71,7 @@ export class Screenshare {
             if (pid) {
               connection.setSoundshareSource(
                 pid,
-                // this.mediaEngineStore.getExperimentalSoundshare()
-                true
+                this.mediaEngineStore.getExperimentalSoundshare()
               );
             }
           }

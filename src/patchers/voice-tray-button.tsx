@@ -1,16 +1,21 @@
 import { Patcher } from 'dium';
+import { VoiceTrayQualityButton } from '../components';
 import { Location } from '../discord-modules';
 
 // This is the same Location analytics wrapper used (and abandoned) for the
 // old Go Live modal injection, but it's confirmed live to fire reliably
 // with props.section === 'Voice Control Tray' when rendering the mute/
-// deafen/screen-share icon row. Its render() returns a Consumer whose
-// children is a render-prop function; calling that produces a Context
-// Provider whose own children is the array of tray sections we can inject
-// into directly.
+// deafen/screen-share icon row.
+//
+// Structure confirmed live, three levels deep:
+// Location.render() -> Consumer whose children is a render-prop function ->
+// calling it produces a Context.Provider whose children is
+// [eventPromptsContainer (unrelated notification banners), wrapper] ->
+// wrapper's own children is [buttonSection, buttonSection, memo'd user/
+// disconnect panel] -> the second buttonSection (5 items, one conditionally
+// false) is the mic/deafen/gear icon cluster - push our button there.
 export class VoiceTrayButton {
   private static unpatchFunctions: (() => void)[] = [];
-  private static logged = false;
 
   public static patch(): void {
     this.unpatch();
@@ -24,47 +29,26 @@ export class VoiceTrayButton {
 
         const result = data.result as any;
         const oldChildren = result?.props?.children;
-        if (typeof oldChildren !== 'function') {
-          if (!this.logged) {
-            this.logged = true;
-            console.log(
-              '[BetterScreenshare debug] voice tray: section matched but children is not a function:',
-              oldChildren
-            );
-          }
-          return;
-        }
+        if (typeof oldChildren !== 'function') return;
 
         result.props.children = (...args: any[]) => {
           const rendered = oldChildren(...args);
-          const children = rendered?.props?.children;
-          const isArray = Array.isArray(children);
 
-          if (!this.logged && isArray) {
-            this.logged = true;
-            // children[0] (eventPromptsContainer) is unrelated (notification
-            // banners). children[1] (wrapper) is the actual tray - drill one
-            // level further into its own children to find the icon row.
-            const wrapperChildren = children[1]?.props?.children;
-            if (Array.isArray(wrapperChildren)) {
-              wrapperChildren.forEach((child: any, i: number) => {
-                console.log(
-                  `[BetterScreenshare debug] voice tray: wrapper child[${i}] =`,
-                  child
-                );
-                console.log(
-                  `[BetterScreenshare debug] voice tray: wrapper child[${i}] className =`,
-                  child?.props?.className,
-                  'own children =',
-                  child?.props?.children
-                );
-              });
-            } else {
-              console.log(
-                '[BetterScreenshare debug] voice tray: wrapper children not an array:',
-                wrapperChildren
-              );
-            }
+          const wrapper = rendered?.props?.children?.[1];
+          const buttonCluster = wrapper?.props?.children?.[1];
+          const items = buttonCluster?.props?.children;
+
+          if (
+            Array.isArray(items) &&
+            !items.some(
+              (item: any) => item?.key === 'better-screenshare-button'
+            )
+          ) {
+            items.push(
+              BdApi.React.createElement(VoiceTrayQualityButton, {
+                key: 'better-screenshare-button',
+              })
+            );
           }
 
           return rendered;
@@ -76,7 +60,6 @@ export class VoiceTrayButton {
   }
 
   public static unpatch(): void {
-    this.logged = false;
     this.unpatchFunctions.forEach((fn) => fn());
     this.unpatchFunctions = [];
   }

@@ -12,28 +12,12 @@ import { TextInput } from '../text-input';
 const { h5 } = text;
 const mediaEngine = mediaEngineStore.getMediaEngine();
 
-// TEMPORARY: getWindowPreviews' argument signature no longer matches
-// what this plugin passes (Discord throws "Invalid argument at index 0:
-// type mismatch"). Logged once for diagnosis instead of spamming an
-// unhandled rejection on every poll; safe to remove once fixed for real.
-let loggedWindowPreviewsSignature = false;
-
-const fetchWindowPreviews = async (): Promise<WindowPreview[] | undefined> => {
-  try {
-    return await mediaEngine.getWindowPreviews(1, 1);
-  } catch (e) {
-    if (!loggedWindowPreviewsSignature) {
-      loggedWindowPreviewsSignature = true;
-      console.log(
-        '[BetterScreenshare debug] getWindowPreviews failed:',
-        e,
-        'current signature:',
-        mediaEngine.getWindowPreviews?.toString()
-      );
-    }
-    return undefined;
-  }
-};
+// getWindowPreviews now takes a third argument (useWgc, "use Windows
+// Graphics Capture") - confirmed live that leaving it undefined (the old
+// 2-arg call) throws "Invalid argument at index 0: type mismatch"; any
+// boolean there works fine.
+const fetchWindowPreviews = (): Promise<WindowPreview[]> =>
+  mediaEngine.getWindowPreviews(1, 1, false);
 
 export interface StreamQualitySectionSettingsGroupProps {
   title: string;

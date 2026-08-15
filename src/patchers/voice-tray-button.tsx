@@ -6,8 +6,11 @@ import { Location } from '../discord-modules';
 // confirmed to reliably fire with props.section === 'Voice Control Tray'
 // when rendering the mute/deafen/screen-share icon row - a much steadier
 // target than chasing raw webpack modules for a specific context menu.
-// Logs the render result shape before attempting to inject a button, so
-// we don't repeat guessing at an array shape that turns out to be wrong.
+//
+// Its rendered children is a render-prop function (confirmed live), so
+// wrap it, call through to the original every time (tray still renders
+// normally), and log what it actually produces once so the real button
+// injection can be built against real data instead of another guess.
 export class VoiceTrayButton {
   private static unpatchFunctions: (() => void)[] = [];
   private static logged = false;
@@ -15,23 +18,32 @@ export class VoiceTrayButton {
   public static patch(): void {
     this.unpatch();
 
-    const unpatchRender = Patcher.after(Location.prototype, 'render', (data) => {
-      const props = data.context?.props as { section?: string } | undefined;
-      if (props?.section !== 'Voice Control Tray') return;
-      if (this.logged) return;
-      this.logged = true;
+    const unpatchRender = Patcher.after(
+      Location.prototype,
+      'render',
+      (data) => {
+        const props = data.context?.props as { section?: string } | undefined;
+        if (props?.section !== 'Voice Control Tray') return;
 
-      console.log(
-        '[BetterScreenshare debug] Voice Control Tray render result =',
-        data.result
-      );
-      console.log(
-        '[BetterScreenshare debug] Voice Control Tray children =',
-        (data.result as any)?.props?.children,
-        'isArray =',
-        Array.isArray((data.result as any)?.props?.children)
-      );
-    });
+        const result = data.result as any;
+        const oldChildren = result?.props?.children;
+        if (typeof oldChildren !== 'function') return;
+
+        result.props.children = (...args: any[]) => {
+          const rendered = oldChildren(...args);
+
+          if (!this.logged) {
+            this.logged = true;
+            console.log(
+              '[BetterScreenshare debug] Voice Control Tray rendered content =',
+              rendered
+            );
+          }
+
+          return rendered;
+        };
+      }
+    );
 
     this.unpatchFunctions.push(unpatchRender);
   }

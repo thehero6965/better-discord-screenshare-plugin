@@ -22,7 +22,7 @@ module.exports = class extends Plugin {
     }
 
     try {
-      StreamContextMenu.patch();
+      await StreamContextMenu.patch();
     } catch (e) {
       console.error(
         '[BetterScreenshare debug] StreamContextMenu.patch() failed',

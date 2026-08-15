@@ -3,23 +3,33 @@ import { StreamQualitySection } from '../components';
 
 export class StreamContextMenu {
   private static unpatchFunctions: (() => void)[] = [];
+  private static stopped = false;
 
-  public static patch(): void {
+  public static async patch(): Promise<void> {
     this.unpatch();
+    this.stopped = false;
 
     // BdApi.ContextMenu.patch('manage-streams', ...) registers without
     // error but its callback never fires - confirmed live, even patched
     // directly from the console with no plugin code involved. This menu
     // appears to bypass whatever BD's ContextMenu API hooks into, so
     // patch the component that builds it directly instead.
-    const [menuModule, menuKey] = BdApi.Webpack.getWithKey(
-      BdApi.Webpack.Filters.bySource('manage-streams'),
-      { searchExports: true }
-    );
+    const filter = BdApi.Webpack.Filters.bySource('manage-streams');
+
+    // The module that builds this menu is lazily loaded (only required
+    // the first time the menu is actually opened), so a plain getWithKey
+    // at plugin start finds nothing - wait for it to load first. Resolves
+    // immediately if it's already loaded.
+    await BdApi.Webpack.waitForModule(filter, { searchExports: true });
+    if (this.stopped) return;
+
+    const [menuModule, menuKey] = BdApi.Webpack.getWithKey(filter, {
+      searchExports: true,
+    });
 
     if (!menuModule || !menuKey) {
       console.error(
-        '[BetterScreenshare debug] Could not find a module matching "manage-streams" in its source'
+        '[BetterScreenshare debug] manage-streams module loaded but getWithKey still found nothing'
       );
       return;
     }
@@ -64,6 +74,7 @@ export class StreamContextMenu {
   }
 
   public static unpatch(): void {
+    this.stopped = true;
     this.unpatchFunctions.forEach((fn) => fn());
     this.unpatchFunctions = [];
   }

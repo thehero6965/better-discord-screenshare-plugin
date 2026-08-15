@@ -1,5 +1,4 @@
 import { Patcher } from 'dium';
-import { VoiceTrayQualityButton } from '../components';
 import { Location } from '../discord-modules';
 
 // This is the same Location analytics wrapper used (and abandoned) for the
@@ -41,33 +40,25 @@ export class VoiceTrayButton {
           const children = rendered?.props?.children;
           const isArray = Array.isArray(children);
 
-          if (!this.logged) {
+          if (!this.logged && isArray) {
             this.logged = true;
-            console.log(
-              '[BetterScreenshare debug] voice tray: rendered =',
-              rendered
-            );
-            console.log(
-              '[BetterScreenshare debug] voice tray: children =',
-              children,
-              'isArray =',
-              isArray,
-              'length =',
-              isArray ? children.length : undefined
-            );
-          }
-
-          if (
-            isArray &&
-            !children.some(
-              (child: any) => child?.key === 'better-screenshare-button'
-            )
-          ) {
-            children.push(
-              BdApi.React.createElement(VoiceTrayQualityButton, {
-                key: 'better-screenshare-button',
-              })
-            );
+            // The previous push landed as a sibling of these two divs, not
+            // nested in either - invisible, since the parent almost
+            // certainly has fixed layout for exactly 2 rows. Identify
+            // which of the two is the actual mic/deafen/gear tray before
+            // injecting into it directly.
+            children.forEach((child: any, i: number) => {
+              console.log(
+                `[BetterScreenshare debug] voice tray: child[${i}] =`,
+                child
+              );
+              console.log(
+                `[BetterScreenshare debug] voice tray: child[${i}] className =`,
+                child?.props?.className,
+                'own children =',
+                child?.props?.children
+              );
+            });
           }
 
           return rendered;

@@ -4,7 +4,7 @@ import { betterDiscordConfig } from '../betterdiscord.config';
 import { Plugin } from './bd';
 import { StreamQualitySection } from './components';
 import { Emitter } from './emitter';
-import { Debug, Screenshare, VoiceTrayButton } from './patchers';
+import { Debug, FloatingButton, Screenshare } from './patchers';
 
 module.exports = class extends Plugin {
   constructor() {
@@ -22,10 +22,10 @@ module.exports = class extends Plugin {
     }
 
     try {
-      VoiceTrayButton.patch();
+      FloatingButton.mount();
     } catch (e) {
       console.error(
-        '[BetterScreenshare debug] VoiceTrayButton.patch() failed',
+        '[BetterScreenshare debug] FloatingButton.mount() failed',
         e
       );
     }
@@ -35,7 +35,7 @@ module.exports = class extends Plugin {
     Patcher.unpatchAll();
     Debug.unpatch();
     Screenshare.unpatch();
-    VoiceTrayButton.unpatch();
+    FloatingButton.unmount();
     Emitter.removeAllListeners();
   }
 

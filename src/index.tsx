@@ -4,7 +4,7 @@ import { betterDiscordConfig } from '../betterdiscord.config';
 import { Plugin } from './bd';
 import { StreamQualitySection } from './components';
 import { Emitter } from './emitter';
-import { Debug, Screenshare, StreamContextMenu } from './patchers';
+import { Debug, Screenshare, VoiceTrayButton } from './patchers';
 
 module.exports = class extends Plugin {
   constructor() {
@@ -22,10 +22,10 @@ module.exports = class extends Plugin {
     }
 
     try {
-      await StreamContextMenu.patch();
+      VoiceTrayButton.patch();
     } catch (e) {
       console.error(
-        '[BetterScreenshare debug] StreamContextMenu.patch() failed',
+        '[BetterScreenshare debug] VoiceTrayButton.patch() failed',
         e
       );
     }
@@ -35,7 +35,7 @@ module.exports = class extends Plugin {
     Patcher.unpatchAll();
     Debug.unpatch();
     Screenshare.unpatch();
-    StreamContextMenu.unpatch();
+    VoiceTrayButton.unpatch();
     Emitter.removeAllListeners();
   }
 

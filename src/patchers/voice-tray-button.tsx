@@ -1,19 +1,16 @@
 import { Patcher } from 'dium';
+import { VoiceTrayQualityButton } from '../components';
 import { Location } from '../discord-modules';
 
-// TEMPORARY: diagnostic only. This is the same Location analytics wrapper
-// used (and abandoned) for the old Go Live modal injection, but it's
-// confirmed to reliably fire with props.section === 'Voice Control Tray'
-// when rendering the mute/deafen/screen-share icon row - a much steadier
-// target than chasing raw webpack modules for a specific context menu.
-//
-// Its rendered children is a render-prop function (confirmed live), so
-// wrap it, call through to the original every time (tray still renders
-// normally), and log what it actually produces once so the real button
-// injection can be built against real data instead of another guess.
+// This is the same Location analytics wrapper used (and abandoned) for the
+// old Go Live modal injection, but it's confirmed live to fire reliably
+// with props.section === 'Voice Control Tray' when rendering the mute/
+// deafen/screen-share icon row. Its render() returns a Consumer whose
+// children is a render-prop function; calling that produces a Context
+// Provider whose own children is the array of tray sections we can inject
+// into directly.
 export class VoiceTrayButton {
   private static unpatchFunctions: (() => void)[] = [];
-  private static logged = false;
 
   public static patch(): void {
     this.unpatch();
@@ -32,11 +29,17 @@ export class VoiceTrayButton {
         result.props.children = (...args: any[]) => {
           const rendered = oldChildren(...args);
 
-          if (!this.logged) {
-            this.logged = true;
-            console.log(
-              '[BetterScreenshare debug] Voice Control Tray rendered content =',
-              rendered
+          const children = rendered?.props?.children;
+          if (
+            Array.isArray(children) &&
+            !children.some(
+              (child: any) => child?.key === 'better-screenshare-button'
+            )
+          ) {
+            children.push(
+              BdApi.React.createElement(VoiceTrayQualityButton, {
+                key: 'better-screenshare-button',
+              })
             );
           }
 
@@ -49,7 +52,6 @@ export class VoiceTrayButton {
   }
 
   public static unpatch(): void {
-    this.logged = false;
     this.unpatchFunctions.forEach((fn) => fn());
     this.unpatchFunctions = [];
   }

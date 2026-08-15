@@ -42,23 +42,29 @@ export class VoiceTrayButton {
 
           if (!this.logged && isArray) {
             this.logged = true;
-            // The previous push landed as a sibling of these two divs, not
-            // nested in either - invisible, since the parent almost
-            // certainly has fixed layout for exactly 2 rows. Identify
-            // which of the two is the actual mic/deafen/gear tray before
-            // injecting into it directly.
-            children.forEach((child: any, i: number) => {
+            // children[0] (eventPromptsContainer) is unrelated (notification
+            // banners). children[1] (wrapper) is the actual tray - drill one
+            // level further into its own children to find the icon row.
+            const wrapperChildren = children[1]?.props?.children;
+            if (Array.isArray(wrapperChildren)) {
+              wrapperChildren.forEach((child: any, i: number) => {
+                console.log(
+                  `[BetterScreenshare debug] voice tray: wrapper child[${i}] =`,
+                  child
+                );
+                console.log(
+                  `[BetterScreenshare debug] voice tray: wrapper child[${i}] className =`,
+                  child?.props?.className,
+                  'own children =',
+                  child?.props?.children
+                );
+              });
+            } else {
               console.log(
-                `[BetterScreenshare debug] voice tray: child[${i}] =`,
-                child
+                '[BetterScreenshare debug] voice tray: wrapper children not an array:',
+                wrapperChildren
               );
-              console.log(
-                `[BetterScreenshare debug] voice tray: child[${i}] className =`,
-                child?.props?.className,
-                'own children =',
-                child?.props?.children
-              );
-            });
+            }
           }
 
           return rendered;

@@ -1,7 +1,5 @@
 import { getMeta } from 'dium';
 
-const STYLE_ID = `${getMeta().name}-dropdown-fix`;
-
 // Discord's native dropdown popout (portaled as position: fixed) renders
 // behind BD's own settings modal chrome when opened from inside our
 // getSettingsPanel() - confirmed live via the popout's own outerHTML, which
@@ -17,11 +15,15 @@ const css = `
 `;
 
 export class DropdownFix {
+  private static styleId(): string {
+    return `${getMeta().name}-dropdown-fix`;
+  }
+
   public static patch(): void {
-    BdApi.DOM.addStyle(STYLE_ID, css);
+    BdApi.DOM.addStyle(this.styleId(), css);
   }
 
   public static unpatch(): void {
-    BdApi.DOM.removeStyle(STYLE_ID);
+    BdApi.DOM.removeStyle(this.styleId());
   }
 }

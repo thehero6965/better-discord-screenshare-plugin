@@ -16,6 +16,7 @@ import { Location } from '../discord-modules';
 // false) is the mic/deafen/gear icon cluster - push our button there.
 export class VoiceTrayButton {
   private static unpatchFunctions: (() => void)[] = [];
+  private static logged = false;
 
   public static patch(): void {
     this.unpatch();
@@ -37,9 +38,25 @@ export class VoiceTrayButton {
           const wrapper = rendered?.props?.children?.[1];
           const buttonCluster = wrapper?.props?.children?.[1];
           const items = buttonCluster?.props?.children;
+          const isArray = Array.isArray(items);
+
+          if (!this.logged) {
+            this.logged = true;
+            console.log('[BetterScreenshare debug] wrapper =', wrapper);
+            console.log(
+              '[BetterScreenshare debug] buttonCluster =',
+              buttonCluster
+            );
+            console.log(
+              '[BetterScreenshare debug] items =',
+              items,
+              'isArray =',
+              isArray
+            );
+          }
 
           if (
-            Array.isArray(items) &&
+            isArray &&
             !items.some(
               (item: any) => item?.key === 'better-screenshare-button'
             )
@@ -48,6 +65,10 @@ export class VoiceTrayButton {
               BdApi.React.createElement(VoiceTrayQualityButton, {
                 key: 'better-screenshare-button',
               })
+            );
+            console.log(
+              '[BetterScreenshare debug] pushed button, items now =',
+              items
             );
           }
 
@@ -60,6 +81,7 @@ export class VoiceTrayButton {
   }
 
   public static unpatch(): void {
+    this.logged = false;
     this.unpatchFunctions.forEach((fn) => fn());
     this.unpatchFunctions = [];
   }

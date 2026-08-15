@@ -23,11 +23,15 @@ export const VoiceTrayQualityButton: React.FC = () => {
         justifyContent: 'center',
         width: 32,
         height: 32,
+        minWidth: 32,
+        minHeight: 32,
+        flexShrink: 0,
         borderRadius: 8,
         background: 'rgba(255, 255, 255, 0.05)',
         color: '#dcddde',
         cursor: 'pointer',
         fontSize: 16,
+        zIndex: 1,
       }}
     >
       ⚙

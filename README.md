@@ -62,6 +62,18 @@ The most reliable state we've found is having the plugin **reloaded while you're
 
 **Audio source and codecs cannot be changed while already streaming.** Confirmed live that calling Discord's soundshare-attach or codec-negotiation APIs again on an already-connected stream breaks audio - even calling either again with the exact same values as before is enough to silently kill it, and Discord doesn't report this as a failure on its own. Because of this, changing "Audio Source", "Video Codec", or "Audio Codec" only takes effect the next time you start a stream; this plugin deliberately does not try to apply any of them live (including via the Apply button), since doing so reliably corrupts a working stream's audio instead of switching it.
 
+**Switching what you're sharing mid-stream (screen ↔ application, or to a different application) also loses your intended audio source**, even though it isn't something this plugin does on purpose - Discord itself resets the shared audio to whatever is the default/global audio at that moment for the new source, and there's no live call this plugin can safely make to correct it (see above). If you need to keep a specific audio source, don't switch sources mid-stream - fully stop the stream and start a new one targeting the application you want, with "Audio Source" set correctly beforehand. See Recommended Workflow below.
+
+## Recommended Workflow
+
+For the most reliable experience on the viewer's side:
+
+1. Set your desired quality, codec, and audio source in this plugin's settings *before* going live.
+2. Start your stream normally.
+3. If your own local preview goes black at any point, use the "Reload plugin" button (or manually disable/re-enable the plugin) - this doesn't interrupt the stream for viewers.
+4. Use "Apply quality settings to active stream" freely for resolution/bitrate/keyframe changes mid-stream - these are safe to change live.
+5. Don't change "Audio Source", "Video Codec", or "Audio Codec" mid-stream, and don't switch what you're sharing (screen vs. application, or between applications) if you need to keep a specific audio source. If you need to change any of these, fully stop the stream and start a new one instead.
+
 ## Scripts
 
 - `build` Build the plugin.

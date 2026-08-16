@@ -22,8 +22,11 @@ To get the plugin, you can either build it yourself by cloning this repository o
 - **Encode** - Set a custom encode resolution and framerate.
 - **Bitrate** - Set a custom min, target and max bitrate.
 - **Keyframe Interval** - Set a custom keyframe interval.
-- **Audio Source** - Set a custom audio source even when sharing a screen.
+- **Audio Source** - Set a custom audio source even when sharing a screen. Takes effect the next time you go live (see Known Issues below - it cannot be changed while already streaming).
 - **Codec** - Set a custom video and audio codec [OPUS, H264, VP8, VP9, AV1].
+- **Floating settings popout** - A draggable gear button appears on screen while this plugin is active, giving you quick access to every setting above without opening Discord's settings.
+- **Apply quality settings to active stream** - Pushes your current resolution/bitrate/keyframe settings to an already-live stream immediately, instead of only taking effect on your next "Go Live". Discord doesn't reliably reapply these on its own when you switch what you're sharing mid-stream, so this button re-asserts them. Does not touch audio source or codecs - see Known Issues.
+- **Reload plugin** - A shortcut for disabling and re-enabling the plugin from BetterDiscord's plugin list, without leaving the settings panel. See Known Issues for why you'd want this.
 
 ## Default Config
 
@@ -51,7 +54,25 @@ To get the plugin, you can either build it yourself by cloning this repository o
 
 ## Known Issues
 
-When sharing a window directly it can sometimes happen that no changes are applied, the reason for this is unknown at this time, but to avoid this you can simply share your screen and set the audio source if needed.
+Quality settings are configured through this plugin's own settings panel (BetterDiscord Settings → Plugins → the gear icon next to BetterScreenshare, or the floating popout while live) and are applied automatically when you go live.
+
+**Your own local stream preview can go black.** This happens after this plugin pushes a resolution/framerate change to an already-live connection (either automatically, when Discord resets your stream's quality on its own - e.g. after you switch what you're sharing mid-stream - and this plugin re-asserts it, or when you click "Apply quality settings to active stream"). It's cosmetic only: viewers always continue to see the correct stream at the correct quality the entire time, this only affects the thumbnail/fullscreen preview on your own screen. It's also inconsistent - sometimes switching to a different screen/window and back recovers it, sometimes it doesn't, and the plugin's default startup state (loaded from Discord launch) tends to be the least reliable one to recover from. This looks like a race condition in Discord's own native capture session reinitialization, not something this plugin can reliably control or predict.
+
+The most reliable state we've found is having the plugin **reloaded while you're already streaming**, rather than continuously loaded from Discord startup. If your preview goes black, use the "Reload plugin" button in the settings panel (or manually disable and re-enable the plugin in BetterDiscord's plugin list) while your stream is live - this doesn't interrupt the stream itself, only briefly reinitializes the plugin.
+
+**Audio source and codecs cannot be changed while already streaming.** Confirmed live that calling Discord's soundshare-attach or codec-negotiation APIs again on an already-connected stream breaks audio - even calling either again with the exact same values as before is enough to silently kill it, and Discord doesn't report this as a failure on its own. Because of this, changing "Audio Source", "Video Codec", or "Audio Codec" only takes effect the next time you start a stream; this plugin deliberately does not try to apply any of them live (including via the Apply button), since doing so reliably corrupts a working stream's audio instead of switching it.
+
+**Switching what you're sharing mid-stream (screen ↔ application, or to a different application) also loses your intended audio source**, even though it isn't something this plugin does on purpose - Discord itself resets the shared audio to whatever is the default/global audio at that moment for the new source, and there's no live call this plugin can safely make to correct it (see above). If you need to keep a specific audio source, don't switch sources mid-stream - fully stop the stream and start a new one targeting the application you want, with "Audio Source" set correctly beforehand. See Recommended Workflow below.
+
+## Recommended Workflow
+
+For the most reliable experience on the viewer's side:
+
+1. Set your desired quality, codec, and audio source in this plugin's settings *before* going live.
+2. Start your stream normally.
+3. If your own local preview goes black at any point, use the "Reload plugin" button (or manually disable/re-enable the plugin) - this doesn't interrupt the stream for viewers.
+4. Use "Apply quality settings to active stream" freely for resolution/bitrate/keyframe changes mid-stream - these are safe to change live.
+5. Don't change "Audio Source", "Video Codec", or "Audio Codec" mid-stream, and don't switch what you're sharing (screen vs. application, or between applications) if you need to keep a specific audio source. If you need to change any of these, fully stop the stream and start a new one instead.
 
 ## Scripts
 

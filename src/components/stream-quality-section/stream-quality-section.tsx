@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { getMeta } from 'dium';
+import React, { useEffect, useRef, useState } from 'react';
 import { mediaEngineStore, text } from '../../discord-modules';
 import {
   CodecCapabilities,
   WindowPreview,
 } from '../../discord-modules/types/modules';
+import { Screenshare } from '../../patchers/screenshare';
 import { usePluginStore } from '../../stores';
 import { checkIfNumberOrBlank } from '../../utils';
 import { Dropdown } from '../dropdown';
@@ -11,6 +13,19 @@ import { TextInput } from '../text-input';
 
 const { h5 } = text;
 const mediaEngine = mediaEngineStore.getMediaEngine();
+
+// getWindowPreviews now takes a third argument (useWgc, "use Windows
+// Graphics Capture") - confirmed live that leaving it undefined (the old
+// 2-arg call) throws "Invalid argument at index 0: type mismatch"; any
+// boolean there works fine.
+const fetchWindowPreviews = (): Promise<WindowPreview[]> =>
+  mediaEngine.getWindowPreviews(1, 1, false);
+
+// Reloading the plugin while already live (rather than having it loaded
+// from Discord startup) is the most reliable state we've found for the
+// local self-preview blackout bug (see README's Known Issues) - this is
+// just a shortcut for the manual disable+enable toggle in BD's plugin list.
+const reloadPlugin = () => BdApi.Plugins.reload(getMeta().name);
 
 export interface StreamQualitySectionSettingsGroupProps {
   title: string;
@@ -75,10 +90,21 @@ export const StreamQualitySection: React.FC = () => {
   const [windowPreviews, setWindowPreviews] = useState<
     WindowPreview[] | undefined
   >();
+  const [justApplied, setJustApplied] = useState(false);
+  const justAppliedTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(justAppliedTimeout.current), []);
+
+  const applyNow = () => {
+    Screenshare.applyToActiveConnections();
+    setJustApplied(true);
+    clearTimeout(justAppliedTimeout.current);
+    justAppliedTimeout.current = setTimeout(() => setJustApplied(false), 1500);
+  };
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      setWindowPreviews(await mediaEngine.getWindowPreviews(1, 1));
+      setWindowPreviews(await fetchWindowPreviews());
     }, 4000);
 
     return () => clearInterval(interval);
@@ -91,7 +117,7 @@ export const StreamQualitySection: React.FC = () => {
       );
 
       setCodecs(stringifiedCodecs);
-      setWindowPreviews(await mediaEngine.getWindowPreviews(1, 1));
+      setWindowPreviews(await fetchWindowPreviews());
     })();
   }, []);
 
@@ -213,7 +239,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const videoCodecProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Video Codec',
+    title: 'Video Codec (restart)',
     settingElements: [
       <Dropdown
         options={[
@@ -231,7 +257,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const audioCodecProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Audio Codec',
+    title: 'Audio Codec (restart)',
     settingElements: [
       <Dropdown
         options={[
@@ -247,7 +273,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const audioSrcProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Audio Source',
+    title: 'Audio Source (restart)',
     settingElements: [
       <Dropdown
         options={[
@@ -291,6 +317,45 @@ export const StreamQualitySection: React.FC = () => {
         <StreamQualitySectionSettingsGroup {...keyframeIntervalProps} />
       </div>
       <StreamQualitySectionSettingsGroup {...audioSrcProps} />
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          marginTop: '12px',
+        }}
+      >
+        <button
+          type="button"
+          onClick={applyNow}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: '#fff',
+            background: justApplied ? '#248046' : '#5865f2',
+          }}
+        >
+          {justApplied ? 'Applied' : 'Apply quality settings to active stream'}
+        </button>
+        <button
+          type="button"
+          title="If your local stream preview goes black, reloading the plugin while already live is the most reliable fix - see README's Known Issues."
+          onClick={reloadPlugin}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: '#fff',
+            background: '#4f545c',
+          }}
+        >
+          Reload plugin
+        </button>
+      </div>
     </div>
   );
 };

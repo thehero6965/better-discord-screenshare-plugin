@@ -1,6 +1,12 @@
+import type React from 'react';
+
 export interface Plugin {
-  /** This function allows your plugins to have a settings panel displayed through BetterDiscord. The expecting return type is either an HTMLElement or a string representing the HTML. */
-  getSettingsPanel?(): void;
+  /** This function allows your plugins to have a settings panel displayed through BetterDiscord. May return an HTMLElement, an HTML string, or a React element/component - BetterDiscord mounts React results itself. */
+  getSettingsPanel?():
+    | HTMLElement
+    | string
+    | React.ReactElement
+    | React.ComponentType;
   /** This function is called on every mutation of the document. If you're unfamiliar with that terminology, take a look at MDN. */
   observer?(...params: Parameters<MutationCallback>): void;
   /** This function is called every time the view is "switched". A better way to look at this is every time the user navigates such as changing the channel or server. */

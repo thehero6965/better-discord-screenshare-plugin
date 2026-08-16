@@ -1,12 +1,8 @@
-import { Patcher, Utils } from 'dium';
-import React from 'react';
+import { Patcher } from 'dium';
 import deepmerge from 'ts-deepmerge';
-import { StreamQualitySection } from '../components';
 import {
-  Location,
-  dispatcher,
+  Connection,
   mediaEngineStore,
-  streamStore,
   utils as discordUtils,
 } from '../discord-modules';
 import { Emitter } from '../emitter';
@@ -18,11 +14,123 @@ import {
 } from '../stores';
 import { kbitToBit } from '../utils';
 
+// Discord re-runs its own quality negotiation (resetting resolution/framerate
+// to its defaults) whenever the shared source changes mid-stream, and also
+// periodically as part of its own adaptive-quality loop - not just once on
+// 'connected'. Re-applying the resolution/framerate override after every
+// applyQualityConstraints call keeps it from getting stomped on.
+const REAPPLY_THROTTLE_MS = 250;
+
+interface ConnectionOverrideState {
+  isApplyingOverride: boolean;
+  lastAppliedAt: number;
+}
+
 export class Screenshare {
   private static mediaEngineStore = mediaEngineStore;
   private static mediaEngine = this.mediaEngineStore.getMediaEngine();
-  private static replacedStreamQualityComponent = (<StreamQualitySection />);
   private static unpatchFunctions: (() => void)[] = [];
+  private static overrideState = new WeakMap<
+    Connection,
+    ConnectionOverrideState
+  >();
+
+  private static applyResolutionOverride(connection: Connection): void {
+    const state = this.overrideState.get(connection);
+    if (!state) return;
+
+    const { encode, capture, bitrate } = deepmerge(
+      defaultScreenshareConfig as any,
+      usePluginStore.getState().screenshare as any
+    ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+
+    state.isApplyingOverride = true;
+    try {
+      connection.setDesktopEncodingOptions(
+        encode.getWidth(),
+        encode.getHeight(),
+        encode.getFramerate()
+      );
+
+      connection.overwriteQualityForTesting({
+        encode: {
+          framerate: encode.getFramerate(),
+          width: encode.getWidth(),
+          height: encode.getHeight(),
+        },
+        capture: {
+          framerate: capture.getFramerate(),
+          width: capture.getWidth(),
+          height: capture.getHeight(),
+        },
+        bitrateMax: kbitToBit(bitrate.getMaximum()),
+        bitrateMin: kbitToBit(bitrate.getMinimum()),
+        bitrateTarget: kbitToBit(bitrate.getTarget()),
+      });
+    } finally {
+      state.isApplyingOverride = false;
+    }
+    state.lastAppliedAt = Date.now();
+  }
+
+  // Reasserting resolution/keyframe interval on a live connection is safe
+  // (confirmed extensively live), but several of the "setup" calls are not:
+  // confirmed live that re-calling setSoundshareSource OR setCodecs on an
+  // already-connected connection - even with the exact same values as
+  // before, a total no-op - silently kills working audio. Discord doesn't
+  // report this as a failure on its own (e.g. soundshareattached still
+  // fires and soundshareActive stays true), and a detach-then-reattach
+  // doesn't recover it either. So unlike resolution/bitrate/keyframe
+  // interval, audio source and codecs are only ever applied once, on the
+  // initial connect - changing either live requires a stream restart.
+  private static applyLiveSettings(connection: Connection): void {
+    const { getKeyframeInterval } = deepmerge(
+      defaultScreenshareConfig as any,
+      usePluginStore.getState().screenshare as any
+    ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+
+    this.applyResolutionOverride(connection);
+
+    const keyframeInterval = getKeyframeInterval();
+    if (keyframeInterval) connection.setKeyframeInterval(keyframeInterval);
+  }
+
+  private static applyInitialConnectSettings(connection: Connection): void {
+    const { getAudioCodec, getAudioSource, getVideoCodec } = deepmerge(
+      defaultScreenshareConfig as any,
+      usePluginStore.getState().screenshare as any
+    ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+
+    connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
+
+    const audioSource = getAudioSource();
+    if (audioSource === 'none') {
+      connection.setSoundshareSource(0, false);
+    } else if (audioSource && audioSource !== 'default') {
+      const pid = discordUtils.getPidFromDesktopSource(audioSource);
+
+      if (pid) {
+        connection.setSoundshareSource(
+          pid,
+          this.mediaEngineStore.getExperimentalSoundshare()
+        );
+      }
+    }
+  }
+
+  /**
+   * Pushes the current resolution/bitrate/keyframe settings to every active
+   * stream connection immediately, instead of waiting for the next stream
+   * start. Deliberately excludes audio source and codecs - see
+   * applyInitialConnectSettings's comment for why those require a restart.
+   */
+  public static applyToActiveConnections(): void {
+    for (const connection of this.mediaEngine.connections) {
+      if (connection.context !== 'stream') continue;
+      if (!this.overrideState.has(connection)) continue;
+      this.applyLiveSettings(connection);
+    }
+  }
 
   public static patch(): void {
     this.unpatch();
@@ -34,143 +142,38 @@ export class Screenshare {
       (connection) => {
         if (connection.context !== 'stream') return;
 
-        const overwriteQuality = () => {
-          const {
-            getAudioCodec,
-            getAudioSource,
-            getKeyframeInterval,
-            getVideoCodec,
-            encode,
-            capture,
-            bitrate,
-          } = deepmerge(
-            defaultScreenshareConfig as any,
-            usePluginStore.getState().screenshare as any
-          ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+        this.overrideState.set(connection, {
+          isApplyingOverride: false,
+          lastAppliedAt: 0,
+        });
 
-          connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
+        connection.on('connected', () => {
+          this.applyLiveSettings(connection);
+          this.applyInitialConnectSettings(connection);
+        });
 
-          // const desktopSourceId = connection.desktopSourceId;
-          // connection.setDesktopSource(desktopSourceId || '', {
-          //   useVideoHook: this.mediaEngineStore.getVideoHook(),
-          //   useGraphicsCapture: true,
-          //   useQuartzCapturer: true,
-          //   allowScreenCaptureKit: true,
-          //   hdrCaptureMode: 'always',
-          //   fps: 69,
-          //   height: 111,
-          //   width: 423,
-          // });
+        const unpatchQualityConstraints = Patcher.after(
+          connection,
+          'applyQualityConstraints',
+          () => {
+            const state = this.overrideState.get(connection);
+            if (!state || state.isApplyingOverride) return;
+            if (Date.now() - state.lastAppliedAt < REAPPLY_THROTTLE_MS)
+              return;
+            this.applyResolutionOverride(connection);
+          },
+          { silent: true }
+        );
 
-          connection.setDesktopEncodingOptions(
-            encode.getWidth(),
-            encode.getHeight(),
-            encode.getFramerate()
-          );
-
-          connection.overwriteQualityForTesting({
-            encode: {
-              framerate: encode.getFramerate(),
-              width: encode.getWidth(),
-              height: encode.getHeight(),
-            },
-            capture: {
-              framerate: capture.getFramerate(),
-              width: capture.getWidth(),
-              height: capture.getHeight(),
-            },
-            bitrateMax: kbitToBit(bitrate.getMaximum()),
-            bitrateMin: kbitToBit(bitrate.getMinimum()),
-            bitrateTarget: kbitToBit(bitrate.getTarget()),
-          });
-
-          const audioSource = getAudioSource();
-          if (audioSource === 'none') {
-            connection.setSoundshareSource(0, false);
-          } else if (audioSource && audioSource !== 'default') {
-            const pid = discordUtils.getPidFromDesktopSource(audioSource);
-
-            if (pid) {
-              connection.setSoundshareSource(
-                pid,
-                // this.mediaEngineStore.getExperimentalSoundshare()
-                true
-              );
-            }
-          }
-
-          const keyframeInterval = getKeyframeInterval();
-          if (keyframeInterval)
-            connection.setKeyframeInterval(keyframeInterval);
-        };
-
-        connection.on('connected', overwriteQuality);
+        connection.on('destroy', () => {
+          unpatchQualityConstraints();
+          this.overrideState.delete(connection);
+        });
+        this.unpatchFunctions.push(unpatchQualityConstraints);
       }
     );
 
-    const unpatchModalReplacer = Patcher.after(
-      Location.prototype,
-      'render',
-      (data) => {
-        if (data.context.props.page !== 'Go Live Modal') return;
-        const oldChildren = data.result.props.children;
-        const modal =
-          data.result._owner.return.return.return.return.return.return.return
-            .memoizedProps;
-        const modalKey = modal.modalKey;
-        const closeModal = modal.closeModal;
-
-        data.result.props.children = (props: any) => {
-          const oldChildrenResult = oldChildren(props);
-
-          const submitBtn: any = Utils.queryTree(
-            oldChildrenResult,
-            (arg) => arg?.props?.type === 'submit'
-          );
-
-          /* This function exists because there needs to be a way to update the quality so I prevent the default event and emit the connected event */
-          if (submitBtn?.props)
-            submitBtn.props.onClick = (e: any) => {
-              this.mediaEngine.eachConnection((connection) => {
-                if (
-                  connection.context === 'stream' &&
-                  connection.connectionState === 'CONNECTED'
-                ) {
-                  this.mediaEngine.setDesktopSource({ id: null });
-
-                  const currentStream =
-                    streamStore.getCurrentUserActiveStream();
-                  dispatcher.dispatch({
-                    type: 'STREAM_STOP',
-                    streamKey: `${currentStream.streamType}:${
-                      currentStream.guildId ? `${currentStream.guildId}:` : ''
-                    }${currentStream.channelId}:${currentStream.ownerId}`,
-                  });
-
-                  closeModal(modalKey);
-                }
-              });
-            };
-
-          switch (oldChildrenResult.props.value.location.section) {
-            case 'Stream Settings':
-              const streamSettingsModalContent =
-                oldChildrenResult.props.children;
-
-              streamSettingsModalContent.props.title = 'Stream Settings';
-              streamSettingsModalContent.props.children.props.children =
-                this.replacedStreamQualityComponent;
-              break;
-            default:
-              break;
-          }
-
-          return oldChildrenResult;
-        };
-      }
-    );
-
-    this.unpatchFunctions.push(unpatchQualityModifer, unpatchModalReplacer);
+    this.unpatchFunctions.push(unpatchQualityModifer);
   }
 
   public static unpatch(): void {

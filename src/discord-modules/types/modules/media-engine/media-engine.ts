@@ -86,7 +86,8 @@ export interface MediaEngine_ {
   exportClip: (...args: any[]) => any;
   getWindowPreviews: (
     width: number,
-    height: number
+    height: number,
+    useWgc: boolean
   ) => Promise<WindowPreview[]>;
   setAudioSubsystem: (...args: any[]) => any;
   getAudioSubsystem: (...args: any[]) => any;

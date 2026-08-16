@@ -1,3 +1,4 @@
+import { getMeta } from 'dium';
 import React, { useEffect, useRef, useState } from 'react';
 import { mediaEngineStore, text } from '../../discord-modules';
 import {
@@ -19,6 +20,12 @@ const mediaEngine = mediaEngineStore.getMediaEngine();
 // boolean there works fine.
 const fetchWindowPreviews = (): Promise<WindowPreview[]> =>
   mediaEngine.getWindowPreviews(1, 1, false);
+
+// Reloading the plugin while already live (rather than having it loaded
+// from Discord startup) is the most reliable state we've found for the
+// local self-preview blackout bug (see README's Known Issues) - this is
+// just a shortcut for the manual disable+enable toggle in BD's plugin list.
+const reloadPlugin = () => BdApi.Plugins.reload(getMeta().name);
 
 export interface StreamQualitySectionSettingsGroupProps {
   title: string;
@@ -310,23 +317,45 @@ export const StreamQualitySection: React.FC = () => {
         <StreamQualitySectionSettingsGroup {...keyframeIntervalProps} />
       </div>
       <StreamQualitySectionSettingsGroup {...audioSrcProps} />
-      <button
-        type="button"
-        onClick={applyNow}
+      <div
         style={{
+          display: 'flex',
+          gap: '8px',
           marginTop: '12px',
-          padding: '8px 16px',
-          borderRadius: '4px',
-          border: 'none',
-          cursor: 'pointer',
-          fontWeight: 600,
-          color: '#fff',
-          background: justApplied ? '#248046' : '#5865f2',
-          alignSelf: 'flex-start',
         }}
       >
-        {justApplied ? 'Applied' : 'Apply quality settings to active stream'}
-      </button>
+        <button
+          type="button"
+          onClick={applyNow}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: '#fff',
+            background: justApplied ? '#248046' : '#5865f2',
+          }}
+        >
+          {justApplied ? 'Applied' : 'Apply quality settings to active stream'}
+        </button>
+        <button
+          type="button"
+          title="If your local stream preview goes black, reloading the plugin while already live is the most reliable fix - see README's Known Issues."
+          onClick={reloadPlugin}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            cursor: 'pointer',
+            fontWeight: 600,
+            color: '#fff',
+            background: '#4f545c',
+          }}
+        >
+          Reload plugin
+        </button>
+      </div>
     </div>
   );
 };

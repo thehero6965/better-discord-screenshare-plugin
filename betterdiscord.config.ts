@@ -1,6 +1,6 @@
 export const betterDiscordConfig = ((): BetterDiscordConfigExport => ({
   name: 'BetterScreenshare',
-  version: '1.0.1',
+  version: '1.1.0',
   author: 'Phil',
   description:
     'With this plugin you can customize your resolution, framerate, bitrate and more for your screenshare!',

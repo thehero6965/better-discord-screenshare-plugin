@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { mediaEngineStore, text } from '../../discord-modules';
 import {
   CodecCapabilities,
   WindowPreview,
 } from '../../discord-modules/types/modules';
+import { Screenshare } from '../../patchers/screenshare';
 import { usePluginStore } from '../../stores';
 import { checkIfNumberOrBlank } from '../../utils';
 import { Dropdown } from '../dropdown';
@@ -82,6 +83,17 @@ export const StreamQualitySection: React.FC = () => {
   const [windowPreviews, setWindowPreviews] = useState<
     WindowPreview[] | undefined
   >();
+  const [justApplied, setJustApplied] = useState(false);
+  const justAppliedTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => () => clearTimeout(justAppliedTimeout.current), []);
+
+  const applyNow = () => {
+    Screenshare.applyToActiveConnections();
+    setJustApplied(true);
+    clearTimeout(justAppliedTimeout.current);
+    justAppliedTimeout.current = setTimeout(() => setJustApplied(false), 1500);
+  };
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -298,6 +310,23 @@ export const StreamQualitySection: React.FC = () => {
         <StreamQualitySectionSettingsGroup {...keyframeIntervalProps} />
       </div>
       <StreamQualitySectionSettingsGroup {...audioSrcProps} />
+      <button
+        type="button"
+        onClick={applyNow}
+        style={{
+          marginTop: '12px',
+          padding: '8px 16px',
+          borderRadius: '4px',
+          border: 'none',
+          cursor: 'pointer',
+          fontWeight: 600,
+          color: '#fff',
+          background: justApplied ? '#248046' : '#5865f2',
+          alignSelf: 'flex-start',
+        }}
+      >
+        {justApplied ? 'Applied' : 'Apply to active stream'}
+      </button>
     </div>
   );
 };

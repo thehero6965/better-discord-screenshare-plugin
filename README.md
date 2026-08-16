@@ -1,4 +1,4 @@
-## Warning! this is a fork of a now defunct plugin, and is now a heavily AI-recoded plugin.
+## Warning! this is a fork of a now defunct plugin. This project is currently a heavily AI-recoded plugin, and there are no guarantees for it to work properly.
 
 # Better Discord Screenshare Plugin
 

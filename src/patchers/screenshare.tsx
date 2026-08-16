@@ -73,16 +73,34 @@ export class Screenshare {
     state.lastAppliedAt = Date.now();
   }
 
-  private static overwriteQuality(connection: Connection): void {
-    const { getAudioCodec, getAudioSource, getKeyframeInterval, getVideoCodec } =
-      deepmerge(
-        defaultScreenshareConfig as any,
-        usePluginStore.getState().screenshare as any
-      ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+  // Reasserting resolution/codecs/keyframe interval on a live connection is
+  // safe (confirmed extensively live), but re-calling setSoundshareSource on
+  // an already-attached connection is not: confirmed live that even calling
+  // it again with the exact same pid and loopback value - a total no-op -
+  // silently kills working audio (soundshareattached still fires and
+  // soundshareActive stays true, so Discord itself doesn't detect a
+  // failure). A detach-then-reattach doesn't recover it either. So unlike
+  // the rest of the settings, audio source is only ever applied once, on
+  // the initial connect - changing it live requires a stream restart.
+  private static applyLiveSettings(connection: Connection): void {
+    const { getAudioCodec, getKeyframeInterval, getVideoCodec } = deepmerge(
+      defaultScreenshareConfig as any,
+      usePluginStore.getState().screenshare as any
+    ) as any as DefaultScreenshareConfig & ScreenshareConfig;
 
     connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
 
     this.applyResolutionOverride(connection);
+
+    const keyframeInterval = getKeyframeInterval();
+    if (keyframeInterval) connection.setKeyframeInterval(keyframeInterval);
+  }
+
+  private static applyAudioSource(connection: Connection): void {
+    const { getAudioSource } = deepmerge(
+      defaultScreenshareConfig as any,
+      usePluginStore.getState().screenshare as any
+    ) as any as DefaultScreenshareConfig & ScreenshareConfig;
 
     const audioSource = getAudioSource();
     if (audioSource === 'none') {
@@ -97,24 +115,19 @@ export class Screenshare {
         );
       }
     }
-
-    const keyframeInterval = getKeyframeInterval();
-    if (keyframeInterval) connection.setKeyframeInterval(keyframeInterval);
   }
 
   /**
-   * Pushes the current settings to every active stream connection
-   * immediately, instead of waiting for the next stream start. Discord
-   * doesn't reapply our overrides on its own when a setting changes
-   * mid-stream (confirmed live for both resolution/framerate and the audio
-   * source), so this is the only way live changes take effect without a
-   * full stop/restream.
+   * Pushes the current resolution/codec/bitrate/keyframe settings to every
+   * active stream connection immediately, instead of waiting for the next
+   * stream start. Deliberately excludes audio source - see
+   * applyAudioSource's comment for why that one requires a restart.
    */
   public static applyToActiveConnections(): void {
     for (const connection of this.mediaEngine.connections) {
       if (connection.context !== 'stream') continue;
       if (!this.overrideState.has(connection)) continue;
-      this.overwriteQuality(connection);
+      this.applyLiveSettings(connection);
     }
   }
 
@@ -133,7 +146,10 @@ export class Screenshare {
           lastAppliedAt: 0,
         });
 
-        connection.on('connected', () => this.overwriteQuality(connection));
+        connection.on('connected', () => {
+          this.applyLiveSettings(connection);
+          this.applyAudioSource(connection);
+        });
 
         const unpatchQualityConstraints = Patcher.after(
           connection,

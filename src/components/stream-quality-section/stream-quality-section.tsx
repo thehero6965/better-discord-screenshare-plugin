@@ -266,7 +266,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const audioSrcProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Audio Source',
+    title: 'Audio Source (requires restarting the stream to take effect)',
     settingElements: [
       <Dropdown
         options={[
@@ -325,7 +325,7 @@ export const StreamQualitySection: React.FC = () => {
           alignSelf: 'flex-start',
         }}
       >
-        {justApplied ? 'Applied' : 'Apply to active stream'}
+        {justApplied ? 'Applied' : 'Apply quality settings to active stream'}
       </button>
     </div>
   );

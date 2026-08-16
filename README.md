@@ -25,7 +25,7 @@ To get the plugin, you can either build it yourself by cloning this repository o
 - **Audio Source** - Set a custom audio source even when sharing a screen. Takes effect the next time you go live (see Known Issues below - it cannot be changed while already streaming).
 - **Codec** - Set a custom video and audio codec [OPUS, H264, VP8, VP9, AV1].
 - **Floating settings popout** - A draggable gear button appears on screen while this plugin is active, giving you quick access to every setting above without opening Discord's settings.
-- **Apply quality settings to active stream** - Pushes your current resolution/bitrate/codec/keyframe settings to an already-live stream immediately, instead of only taking effect on your next "Go Live". Discord doesn't reliably reapply these on its own when you switch what you're sharing mid-stream, so this button re-asserts them. Does not touch audio source - see Known Issues.
+- **Apply quality settings to active stream** - Pushes your current resolution/bitrate/keyframe settings to an already-live stream immediately, instead of only taking effect on your next "Go Live". Discord doesn't reliably reapply these on its own when you switch what you're sharing mid-stream, so this button re-asserts them. Does not touch audio source or codecs - see Known Issues.
 - **Reload plugin** - A shortcut for disabling and re-enabling the plugin from BetterDiscord's plugin list, without leaving the settings panel. See Known Issues for why you'd want this.
 
 ## Default Config
@@ -60,7 +60,7 @@ Quality settings are configured through this plugin's own settings panel (Better
 
 The most reliable state we've found is having the plugin **reloaded while you're already streaming**, rather than continuously loaded from Discord startup. If your preview goes black, use the "Reload plugin" button in the settings panel (or manually disable and re-enable the plugin in BetterDiscord's plugin list) while your stream is live - this doesn't interrupt the stream itself, only briefly reinitializes the plugin.
 
-**Audio source cannot be changed while already streaming.** Confirmed live that calling Discord's soundshare-attach API again on an already-attached connection breaks audio - even calling it again with the exact same source is enough to silently kill it, and Discord doesn't report this as a failure on its own. Because of this, changing "Audio Source" only takes effect the next time you start a stream; this plugin deliberately does not try to apply it live (including via the Apply button), since doing so reliably corrupts a working stream's audio instead of switching it.
+**Audio source and codecs cannot be changed while already streaming.** Confirmed live that calling Discord's soundshare-attach or codec-negotiation APIs again on an already-connected stream breaks audio - even calling either again with the exact same values as before is enough to silently kill it, and Discord doesn't report this as a failure on its own. Because of this, changing "Audio Source", "Video Codec", or "Audio Codec" only takes effect the next time you start a stream; this plugin deliberately does not try to apply any of them live (including via the Apply button), since doing so reliably corrupts a working stream's audio instead of switching it.
 
 ## Scripts
 

@@ -239,7 +239,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const videoCodecProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Video Codec',
+    title: 'Video Codec (restart)',
     settingElements: [
       <Dropdown
         options={[
@@ -257,7 +257,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const audioCodecProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Audio Codec',
+    title: 'Audio Codec (restart)',
     settingElements: [
       <Dropdown
         options={[
@@ -273,7 +273,7 @@ export const StreamQualitySection: React.FC = () => {
   };
 
   const audioSrcProps: StreamQualitySectionSettingsGroupProps = {
-    title: 'Audio Source (requires restarting the stream to take effect)',
+    title: 'Audio Source (restart)',
     settingElements: [
       <Dropdown
         options={[

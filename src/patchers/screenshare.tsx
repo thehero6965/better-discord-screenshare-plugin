@@ -73,22 +73,21 @@ export class Screenshare {
     state.lastAppliedAt = Date.now();
   }
 
-  // Reasserting resolution/codecs/keyframe interval on a live connection is
-  // safe (confirmed extensively live), but re-calling setSoundshareSource on
-  // an already-attached connection is not: confirmed live that even calling
-  // it again with the exact same pid and loopback value - a total no-op -
-  // silently kills working audio (soundshareattached still fires and
-  // soundshareActive stays true, so Discord itself doesn't detect a
-  // failure). A detach-then-reattach doesn't recover it either. So unlike
-  // the rest of the settings, audio source is only ever applied once, on
-  // the initial connect - changing it live requires a stream restart.
+  // Reasserting resolution/keyframe interval on a live connection is safe
+  // (confirmed extensively live), but several of the "setup" calls are not:
+  // confirmed live that re-calling setSoundshareSource OR setCodecs on an
+  // already-connected connection - even with the exact same values as
+  // before, a total no-op - silently kills working audio. Discord doesn't
+  // report this as a failure on its own (e.g. soundshareattached still
+  // fires and soundshareActive stays true), and a detach-then-reattach
+  // doesn't recover it either. So unlike resolution/bitrate/keyframe
+  // interval, audio source and codecs are only ever applied once, on the
+  // initial connect - changing either live requires a stream restart.
   private static applyLiveSettings(connection: Connection): void {
-    const { getAudioCodec, getKeyframeInterval, getVideoCodec } = deepmerge(
+    const { getKeyframeInterval } = deepmerge(
       defaultScreenshareConfig as any,
       usePluginStore.getState().screenshare as any
     ) as any as DefaultScreenshareConfig & ScreenshareConfig;
-
-    connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
 
     this.applyResolutionOverride(connection);
 
@@ -96,11 +95,13 @@ export class Screenshare {
     if (keyframeInterval) connection.setKeyframeInterval(keyframeInterval);
   }
 
-  private static applyAudioSource(connection: Connection): void {
-    const { getAudioSource } = deepmerge(
+  private static applyInitialConnectSettings(connection: Connection): void {
+    const { getAudioCodec, getAudioSource, getVideoCodec } = deepmerge(
       defaultScreenshareConfig as any,
       usePluginStore.getState().screenshare as any
     ) as any as DefaultScreenshareConfig & ScreenshareConfig;
+
+    connection.setCodecs(getAudioCodec(), getVideoCodec(), 'stream');
 
     const audioSource = getAudioSource();
     if (audioSource === 'none') {
@@ -118,10 +119,10 @@ export class Screenshare {
   }
 
   /**
-   * Pushes the current resolution/codec/bitrate/keyframe settings to every
-   * active stream connection immediately, instead of waiting for the next
-   * stream start. Deliberately excludes audio source - see
-   * applyAudioSource's comment for why that one requires a restart.
+   * Pushes the current resolution/bitrate/keyframe settings to every active
+   * stream connection immediately, instead of waiting for the next stream
+   * start. Deliberately excludes audio source and codecs - see
+   * applyInitialConnectSettings's comment for why those require a restart.
    */
   public static applyToActiveConnections(): void {
     for (const connection of this.mediaEngine.connections) {
@@ -148,7 +149,7 @@ export class Screenshare {
 
         connection.on('connected', () => {
           this.applyLiveSettings(connection);
-          this.applyAudioSource(connection);
+          this.applyInitialConnectSettings(connection);
         });
 
         const unpatchQualityConstraints = Patcher.after(

@@ -1,8 +1,4 @@
-# Important Notice
-
-**This project has been moved from BetterDiscord to Vencord.** Please visit the new repository:
-
-[Vencord Repository](https://github.com/philhk/Vencord)
+## Warning! this is a fork of a now defunct plugin, and is now a heavily AI-recoded plugin.
 
 # Better Discord Screenshare Plugin
 
@@ -70,8 +66,8 @@ For the most reliable experience on the viewer's side:
 
 1. Set your desired quality, codec, and audio source in this plugin's settings *before* going live.
 2. Start your stream normally.
-3. If your own local preview goes black at any point, use the "Reload plugin" button (or manually disable/re-enable the plugin) - this doesn't interrupt the stream for viewers.
-4. Use "Apply quality settings to active stream" freely for resolution/bitrate/keyframe changes mid-stream - these are safe to change live.
+3. If your own local preview goes black at any point, use the "Reload plugin" button (or manually disable/re-enable the plugin) - this doesn't interrupt the stream for viewers. NOTE: Changes made after the preview is shown WILL NOT BE APPLIED.
+4. Use "Apply quality settings to active stream" freely for resolution/bitrate/keyframe changes mid-stream - these are safe to change live. Only works when your preview is black.
 5. Don't change "Audio Source", "Video Codec", or "Audio Codec" mid-stream, and don't switch what you're sharing (screen vs. application, or between applications) if you need to keep a specific audio source. If you need to change any of these, fully stop the stream and start a new one instead.
 
 ## Scripts
@@ -81,4 +77,5 @@ For the most reliable experience on the viewer's side:
 
 ## Credits
 
-- [Zerthox](https://github.com/Zerthox) for BetterDiscord's API [typings](https://github.com/Zerthox/betterdiscord-types), [Dium](https://github.com/Zerthox/BetterDiscord-Plugins/tree/master/packages/dium) and his huge amount of help.
+- [Zerthox](https://github.com/Zerthox) for BetterDiscord's API [typings](https://github.com/Zerthox/betterdiscord-types), [Dium](https://github.com/Zerthox/BetterDiscord-Plugins/tree/master/packages/dium) 
+- Claude AI, and the human intervention ([me](https://github.com/thehero6965))
